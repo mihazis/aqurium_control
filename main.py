@@ -24,7 +24,7 @@ p = 1
             oled.invert(True)
             oled.show()'''
 
-oled.fill(1)
+oled.fill(0)
 oled.text("TEXT", 40, 40)
 oled.show()
 #wifiConnect.connect()upip.install('micropython-uasyncio')
