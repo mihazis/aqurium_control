@@ -7,8 +7,11 @@ def connect():
   station = network.WLAN(network.STA_IF)
  
   if station.isconnected() == True:
-      print("Already connected")
-      return
+      tuple1 = station.ifconfig()
+      #print(tuple1[0])
+      ipold = tuple1[0]
+      
+      return ipold
  
   station.active(True)
   station.connect(ssid, password)
@@ -16,6 +19,6 @@ def connect():
   while station.isconnected() == False:
       pass
  
-  print("Connection successful")
-  print(station.ifconfig())
-  print(station.status())
+  tuple1 = station.ifconfig()
+  ipold = tuple1[0]
+  return ipold
