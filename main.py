@@ -8,6 +8,8 @@ import ntptime
 
 def connect(): #подключение к wi-fi
   
+  wifiled = machine.Pin(2, machine.Pin.OUT) #синий светодиод, должен загораться при успешном коннекте с wifi
+  wifiled.value(0)
   ssid = "Tensor"
   password =  "87654321"
   #ssid = "Tomato24"
@@ -17,9 +19,8 @@ def connect(): #подключение к wi-fi
  
   if station.isconnected() == True:
       tuple1 = station.ifconfig()
-      #print(tuple1[0])
       ipold = tuple1[0]
-      
+      wifiled.value(1)
       return ipold
  
   station.active(True)
@@ -30,6 +31,7 @@ def connect(): #подключение к wi-fi
  
   tuple1 = station.ifconfig()
   ipold = tuple1[0]
+  wifiled.value(1)
   return ipold
 
 #определяем контакты подключения экрана и инициализируем его
@@ -77,6 +79,9 @@ utc_shift = 3
 tm = utime.localtime(utime.mktime(utime.localtime()) + utc_shift*3600)
 tm = tm[0:3] + (0,) + tm[3:6] + (0,)
 rtc.datetime(tm)
+
+
+
 #выводим информацию на экран 1306 с обновлением часов
 while True:
     tim = rtc.datetime()
