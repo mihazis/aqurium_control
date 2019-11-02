@@ -3,10 +3,15 @@ import ssd1306
 import time
 import machine
 import network
+import utime
+import ntptime
 
 def connect(): #подключение к wi-fi
+  
   ssid = "Tensor"
   password =  "87654321"
+  #ssid = "Tomato24"
+  #password =  "77777777"
  
   station = network.WLAN(network.STA_IF)
  
@@ -38,29 +43,80 @@ oled = ssd1306.SSD1306_SPI(128,64,spi1,dc,res,cs)
 oled.text(str(connect()), 0, 0)
 oled.show()
 
-'''#организуем синхронизацию и вывод времени на экран
+#организуем синхронизацию и вывод времени на экран
 rtc = machine.RTC()
-rtc.init((2019,10,23,15,2,0,0,0))
-#rtc.datetime()
-#oled.text(rtc.now(), 0, 21)
-oled.text('sync time...', 0, 0)
-oled.show()
-rtc.ntp_sync(server="hr.pool.ntp.org", tz="CET-1CEST,M3.5.0,M10.5.0/3")
-oled.text('done!', 0, 0)
-oled.show()
+
+#пробуем синхронизировать время
+try:
+    ntptime.settime()
+    oled.fill(0)
+    oled.show()
+    oled.text('sync is succesful', 0, 10)
+    oled.show()
+    time.sleep(1)
+except Exception as ex:
+    oled.fill(0)
+    oled.show()
+    oled.text('something went wrong', 0, 10)
+    oled.show()
+    time.sleep(15)
+else:
+    oled.fill(0)
+    oled.text('OK', 0, 10)
+    oled.show()
+    time.sleep(1)
+finally:
+    oled.fill(0)
+    oled.text('OK!', 0, 10)
+    oled.show()
+    time.sleep(1)
+
+#добавляем временную зону
+
+utc_shift = 3
+tm = utime.localtime(utime.mktime(utime.localtime()) + utc_shift*3600)
+tm = tm[0:3] + (0,) + tm[3:6] + (0,)
+rtc.datetime(tm)
+#выводим информацию на экран 1306 с обновлением часов
 while True:
     tim = rtc.datetime()
-    #print(tim)
     year = str(tim[0])
-    month = str(tim[1])
-    day = str(tim[2])
-    hour = str(tim[4])
-    minute = str(tim[5])
-    second = str(tim[6])
+    mon0 = str(tim[1])
+    day0 = str(tim[2])
+    hour0 = str(tim[4])
+    min0 = str(tim[5])
+    sec0 = str(tim[6])
+
+    if int(mon0) < 10: #добавляем ноль, если меньше 10
+        mon1 = str("0" + mon0)
+        print(mon1)
+    else:
+        mon1 = mon0
+
+    if int(day0) < 10: #добавляем ноль, если меньше 10
+        day1 = str("0" + day0)
+    else:
+        day1 = day0
+
+    if int(hour0) < 10: #добавляем ноль, если меньше 10
+        hour1 = str("0" + hour0)
+    else:
+        hour1 = hour0
+
+    if int(min0) < 10: #добавляем ноль, если меньше 10
+        min1 = str("0" + min0)
+    else:
+        min1 = min0
+
+    
+    if int(sec0) < 10: #добавляем ноль, если меньше 10
+        sec1 = str("0" + sec0)
+    else:
+        sec1 = sec0
+
     oled.text(str(connect()), 0, 0)
-    oled.text(hour, 0, 21)
-    oled.text(minute, 18, 21)
-    oled.text(second, 36, 21)
+    oled.text(hour1 + ":" + min1 + ":" + sec1, 0, 21)
+    oled.text(day1 + "." + mon1 + "." + year, 0, 30)
     oled.show()
     oled.fill(0)
-    time.sleep(1)'''
+    time.sleep(1)
