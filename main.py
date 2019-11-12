@@ -6,15 +6,10 @@ import network
 import utime
 import ntptime
 
-def connect(): #подключение к wi-fi
+def connect(ssid, password): #подключение к wi-fi
   
   wifiled = machine.Pin(2, machine.Pin.OUT) #синий светодиод, должен загораться при успешном коннекте с wifi
   wifiled.value(0)
-  ssid = "Tensor"
-  password =  "87654321"
-  #ssid = "Tomato24"
-  #password =  "77777777"
- 
   station = network.WLAN(network.STA_IF)
  
   if station.isconnected() == True:
@@ -42,8 +37,13 @@ spi1 = machine.SPI(2, baudrate=14500000, sck=machine.Pin(18), mosi=machine.Pin(2
 oled = ssd1306.SSD1306_SPI(128,64,spi1,dc,res,cs)
 
 # вызываем функцию коннекта к wi-fi и выводим ip на экран
-oled.text(str(connect()), 0, 0)
-oled.show()
+
+try:
+    ip = str(connect('Tensor', '87654321'))
+except:
+    oled.text('Error hz', 0, 0)
+    oled.show()
+    time.sleep(5)
 
 #организуем синхронизацию и вывод времени на экран
 rtc = machine.RTC()
@@ -83,7 +83,7 @@ rtc.datetime(tm)
 
 
 #выводим информацию на экран 1306 с обновлением часов
-while True:
+def upd():
     tim = rtc.datetime()
     year = str(tim[0])
     mon0 = str(tim[1])
@@ -119,9 +119,28 @@ while True:
     else:
         sec1 = sec0
 
-    oled.text(str(connect()), 0, 0)
+    oled.text(ip, 0, 0)
     oled.text(hour1 + ":" + min1 + ":" + sec1, 0, 21)
     oled.text(day1 + "." + mon1 + "." + year, 0, 30)
     oled.show()
     oled.fill(0)
     time.sleep(1)
+
+tcounter = 0
+p1 = machine.Pin(27)
+p1.init(p1.OUT)
+p1.value(1)
+
+def tcb(timer):
+    upd()
+    global tcounter
+    if tcounter & 1:
+        p1.value(0)
+    else:
+        p1.value(1)
+    tcounter += 1
+    if (tcounter % 10000) == 0:
+        print("[tcb] timer: {} counter: {}".format(timer.timernum(), tcounter))
+
+t1 = machine.Timer(2)
+t1.init(period=2000, mode=t1.PERIODIC, callback=tcb)
