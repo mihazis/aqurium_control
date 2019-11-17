@@ -1,4 +1,4 @@
-# This is your main script.
+#micropython script for Aquarium manager device NikitinMS 17.11.2019
 import ssd1306
 import time
 import machine
@@ -143,4 +143,4 @@ def tcb(timer):
         print("[tcb] timer: {} counter: {}".format(timer.timernum(), tcounter))
 
 t1 = machine.Timer(2)
-t1.init(period=2000, mode=t1.PERIODIC, callback=tcb)
+t1.init(period=1000, mode=t1.PERIODIC, callback=tcb)
