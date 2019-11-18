@@ -36,6 +36,8 @@ cs = machine.Pin(5)
 spi1 = machine.SPI(2, baudrate=14500000, sck=machine.Pin(18), mosi=machine.Pin(23))
 oled = ssd1306.SSD1306_SPI(128,64,spi1,dc,res,cs)
 
+utc_shift = 3 #задать дельту временной зоны
+
 # вызываем функцию коннекта к wi-fi и выводим ip на экран
 
 try:
@@ -48,42 +50,38 @@ except:
 #организуем синхронизацию и вывод времени на экран
 rtc = machine.RTC()
 
-#пробуем синхронизировать время
-try:
-    ntptime.settime()
-    oled.fill(0)
-    oled.show()
-    oled.text('sync is succesful', 0, 10)
-    oled.show()
-    time.sleep(1)
-except Exception as ex:
-    oled.fill(0)
-    oled.show()
-    oled.text('something went wrong', 0, 10)
-    oled.show()
-    time.sleep(15)
-else:
-    oled.fill(0)
-    oled.text('OK', 0, 10)
-    oled.show()
-    time.sleep(1)
-finally:
-    oled.fill(0)
-    oled.text('OK!', 0, 10)
-    oled.show()
-    time.sleep(1)
-
-#добавляем временную зону
-
-utc_shift = 3
-tm = utime.localtime(utime.mktime(utime.localtime()) + utc_shift*3600)
-tm = tm[0:3] + (0,) + tm[3:6] + (0,)
-rtc.datetime(tm)
-
-
+def sync_time(): #пробуем синхронизировать время
+    try:
+        ntptime.settime()
+        oled.fill(0)
+        oled.show()
+        oled.text('sync is succesful', 0, 10)
+        oled.show()
+        time.sleep(1)
+    except Exception as ex:
+        oled.fill(0)
+        oled.show()
+        oled.text('something went wrong', 0, 10)
+        oled.show()
+        time.sleep(15)
+    else:
+        oled.fill(0)
+        oled.text('OK', 0, 10)
+        oled.show()
+        time.sleep(1)
+    finally:
+        oled.fill(0)
+        oled.text('OK!', 0, 10)
+        oled.show()
+        time.sleep(1)
+    
+    tm = utime.localtime(utime.mktime(utime.localtime()) + utc_shift*3600)
+    tm = tm[0:3] + (0,) + tm[3:6] + (0,)
+    rtc.datetime(tm)
+sync_time()
 
 #выводим информацию на экран 1306 с обновлением часов
-def upd():
+def update_oled():
     tim = rtc.datetime()
     year = str(tim[0])
     mon0 = str(tim[1])
@@ -131,8 +129,8 @@ p1 = machine.Pin(27)
 p1.init(p1.OUT)
 p1.value(1)
 
-def tcb(timer):
-    upd()
+def tcb(timer): #функция, выполняющаяся по коллбэку таймера
+    update_oled()
     global tcounter
     if tcounter & 1:
         p1.value(0)
@@ -144,3 +142,17 @@ def tcb(timer):
 
 t1 = machine.Timer(2)
 t1.init(period=1000, mode=t1.PERIODIC, callback=tcb)
+
+def try_relay():
+    ss1 = machine.Pin(25)
+    ss2 = machine.Pin(26)
+    ss1.init(ss1.OUT)
+    ss2.init(ss2.OUT)
+    while True:
+        ss1.value(1)
+        ss2.value(0)
+        time.sleep(0.3)
+        ss1.value(0)
+        ss2.value(1)
+    
+#try_relay()
