@@ -18,6 +18,8 @@ wifissid1 = 'Tensor'
 wifipassword1 = '87654321'
 wifissid2 = 'Tomato24'
 wifipassword2 = '77777777'
+relay1 = machine.Pin(25)
+relay2 = machine.Pin(26)
 
 class ZeroDivisionError(Exception):
     def init(self, message):
@@ -28,7 +30,6 @@ class NameError(Exception):
 class PasswordError(Exception):
     def init(self, message):
         super().init(message)
-
 def disconnect():
     station = network.WLAN(network.STA_IF)
     if station.active():
@@ -38,8 +39,14 @@ def disconnect():
         time.sleep(1)
         oled.fill(0)
         time.sleep(1)
+def log(logs):
+    oled.fill(0)
+    oled.text(logs, 0, 50)
+    oled.show()
+    time.sleep(1)
 
 def connect(ssid, password):
+    log('connect start')
     station = network.WLAN(network.STA_IF) 
  
     if not station.active():
@@ -51,47 +58,54 @@ def connect(ssid, password):
         return ipold
   
     try:
+        log('try')
         station.connect(ssid, password)
+        time.sleep(3)
         while station.isconnected() == False:
             if time.ticks_diff(time.ticks_ms(), startTime) > 15000:
+                log("raise")
                 raise PasswordError('Неверный пароль')
-            time.sleep_ms(1000)
+            log(str(time.ticks_diff(time.ticks_ms(), startTime)))
+            #time.sleep_ms(1000)
         tuple1 = station.ifconfig()
         ipold = tuple1[0]
         return ipold
           
     except PasswordError:
         time.sleep_ms(1000)
-        #a = 5 / 0
         return '127.0.0.1' 
 
-disconnect()
 
-try:
+ip = str(connect(wifissid2, wifipassword2))
+if ip == '127.0.0.1':
+    log('test')
     ip = str(connect(wifissid1, wifipassword1))
-except ZeroDivisionError:
-    ip = str(wifi.connect(wifissid2, wifipassword2))
-else:
-    print(str('ip from else'))
-finally:
-    ip = str(connect(wifissid2, wifipassword2))
-    
-#организуем синхронизацию и вывод времени на экран
-rtc = machine.RTC()
+    log('test2')
 
+def try_relay():
+    ss1 = machine.Pin(25)
+    ss2 = machine.Pin(26)
+    ss1.init(ss1.OUT)
+    ss2.init(ss2.OUT)
+    while True:
+        ss1.value(1)
+        ss2.value(0)
+        time.sleep(0.3)
+        ss1.value(0)
+        ss2.value(1)
 def sync_time(): #пробуем синхронизировать время
     try:
         ntptime.settime()
         #oled.fill(0)
         #oled.show()
-        oled.text('sync is succesful', 0, 10)
-        oled.show()
+        #oled.text('sync is succesful', 0, 10)
+        #oled.show()
         time.sleep(1)
     except Exception as ex:
         #oled.fill(0)
         #oled.show()
-        oled.text('something went wrong', 0, 10)
-        oled.show()
+        #oled.text('something went wrong', 0, 10)
+        #oled.show()
         time.sleep(15)
     else:
         #oled.fill(0)
@@ -107,6 +121,10 @@ def sync_time(): #пробуем синхронизировать время
     tm = utime.localtime(utime.mktime(utime.localtime()) + utc_shift*3600)
     tm = tm[0:3] + (0,) + tm[3:6] + (0,)
     rtc.datetime(tm)
+
+disconnect()
+#try_connect()  
+rtc = machine.RTC()
 sync_time()
 
 #выводим информацию на экран 1306 с обновлением часов
@@ -172,16 +190,6 @@ def tcb(timer): #функция, выполняющаяся по коллбэк�
 t1 = machine.Timer(2)
 t1.init(period=1000, mode=t1.PERIODIC, callback=tcb)
 
-def try_relay():
-    ss1 = machine.Pin(25)
-    ss2 = machine.Pin(26)
-    ss1.init(ss1.OUT)
-    ss2.init(ss2.OUT)
-    while True:
-        ss1.value(1)
-        ss2.value(0)
-        time.sleep(0.3)
-        ss1.value(0)
-        ss2.value(1)
+
     
 #try_relay()
