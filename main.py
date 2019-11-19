@@ -5,73 +5,102 @@ import machine
 import network
 import utime
 import ntptime
+import wifi
 
-def connect(ssid, password): #подключение к wi-fi
-  
-  wifiled = machine.Pin(2, machine.Pin.OUT) #синий светодиод, должен загораться при успешном коннекте с wifi
-  wifiled.value(0)
-  station = network.WLAN(network.STA_IF)
- 
-  if station.isconnected() == True:
-      tuple1 = station.ifconfig()
-      ipold = tuple1[0]
-      wifiled.value(1)
-      return ipold
- 
-  station.active(True)
-  station.connect(ssid, password)
- 
-  while station.isconnected() == False:
-      pass
- 
-  tuple1 = station.ifconfig()
-  ipold = tuple1[0]
-  wifiled.value(1)
-  return ipold
-
-#определяем контакты подключения экрана и инициализируем его
 res = machine.Pin(16)
 dc = machine.Pin(17)
 cs = machine.Pin(5)
 spi1 = machine.SPI(2, baudrate=14500000, sck=machine.Pin(18), mosi=machine.Pin(23))
 oled = ssd1306.SSD1306_SPI(128,64,spi1,dc,res,cs)
-
 utc_shift = 3 #задать дельту временной зоны
+startTime = time.ticks_ms()
+wifissid1 = 'Tensor'
+wifipassword1 = '87654321'
+wifissid2 = 'Tomato24'
+wifipassword2 = '77777777'
 
-# вызываем функцию коннекта к wi-fi и выводим ip на экран
+class ZeroDivisionError(Exception):
+    def init(self, message):
+        super().init(message)
+class NameError(Exception):
+    def init(self, message):
+        super().init(message)
+class PasswordError(Exception):
+    def init(self, message):
+        super().init(message)
+
+def disconnect():
+    station = network.WLAN(network.STA_IF)
+    if station.active():
+        station.disconnect()
+        station.active(False)
+        oled.text('disconnected!', 0, 30)
+        time.sleep(1)
+        oled.fill(0)
+        time.sleep(1)
+
+def connect(ssid, password):
+    station = network.WLAN(network.STA_IF) 
+ 
+    if not station.active():
+        station.active(True) 
+  
+    if station.isconnected():
+        tuple1 = station.ifconfig()
+        ipold = tuple1[0]
+        return ipold
+  
+    try:
+        station.connect(ssid, password)
+        while station.isconnected() == False:
+            if time.ticks_diff(time.ticks_ms(), startTime) > 15000:
+                raise PasswordError('Неверный пароль')
+            time.sleep_ms(1000)
+        tuple1 = station.ifconfig()
+        ipold = tuple1[0]
+        return ipold
+          
+    except PasswordError:
+        time.sleep_ms(1000)
+        #a = 5 / 0
+        return '127.0.0.1' 
+
+disconnect()
 
 try:
-    ip = str(connect('Tensor', '87654321'))
-except:
-    oled.text('Error hz', 0, 0)
-    oled.show()
-    time.sleep(5)
-
+    ip = str(connect(wifissid1, wifipassword1))
+except ZeroDivisionError:
+    ip = str(wifi.connect(wifissid2, wifipassword2))
+else:
+    print(str('ip from else'))
+finally:
+    ip = str(connect(wifissid2, wifipassword2))
+    
 #организуем синхронизацию и вывод времени на экран
 rtc = machine.RTC()
 
 def sync_time(): #пробуем синхронизировать время
     try:
         ntptime.settime()
-        oled.fill(0)
-        oled.show()
+        #oled.fill(0)
+        #oled.show()
         oled.text('sync is succesful', 0, 10)
         oled.show()
         time.sleep(1)
     except Exception as ex:
-        oled.fill(0)
-        oled.show()
+        #oled.fill(0)
+        #oled.show()
         oled.text('something went wrong', 0, 10)
         oled.show()
         time.sleep(15)
     else:
-        oled.fill(0)
-        oled.text('OK', 0, 10)
+        #oled.fill(0)
+        #oled.text('OK', 0, 10)
         oled.show()
         time.sleep(1)
     finally:
-        oled.fill(0)
-        oled.text('OK!', 0, 10)
+        #oled.fill(0)
+        #oled.text('OK!', 0, 10)
         oled.show()
         time.sleep(1)
     
