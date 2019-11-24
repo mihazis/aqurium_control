@@ -6,7 +6,10 @@ import network
 import utime
 import ntptime
 import wifi
+from umqtt.simple import MQTTClient
+import ubinascii
 
+mqtt_server = 'tailor.cloudmqtt.com'
 res = machine.Pin(16)
 dc = machine.Pin(17)
 cs = machine.Pin(5)
@@ -20,16 +23,8 @@ wifissid2 = 'Tomato24'
 wifipassword2 = '77777777'
 relay1 = machine.Pin(25)
 relay2 = machine.Pin(26)
+mq_mess1 = 0
 
-class ZeroDivisionError(Exception):
-    def init(self, message):
-        super().init(message)
-class NameError(Exception):
-    def init(self, message):
-        super().init(message)
-class PasswordError(Exception):
-    def init(self, message):
-        super().init(message)
 def disconnect():
     station = network.WLAN(network.STA_IF)
     if station.active():
@@ -44,7 +39,6 @@ def log(logs):
     oled.text(logs, 0, 50)
     oled.show()
     time.sleep(1)
-
 def connect(ssid, password):
     log('connect start')
     station = network.WLAN(network.STA_IF) 
@@ -58,7 +52,6 @@ def connect(ssid, password):
         return ipold
   
     try:
-        log('try')
         station.connect(ssid, password)
         time.sleep(3)
         while station.isconnected() == False:
@@ -74,14 +67,6 @@ def connect(ssid, password):
     except PasswordError:
         time.sleep_ms(1000)
         return '127.0.0.1' 
-
-
-ip = str(connect(wifissid2, wifipassword2))
-if ip == '127.0.0.1':
-    log('test')
-    ip = str(connect(wifissid1, wifipassword1))
-    log('test2')
-
 def try_relay():
     ss1 = machine.Pin(25)
     ss2 = machine.Pin(26)
@@ -93,7 +78,7 @@ def try_relay():
         time.sleep(0.3)
         ss1.value(0)
         ss2.value(1)
-def sync_time(): #пробуем синхронизировать время
+def sync_time():        #пробуем синхронизировать время
     try:
         ntptime.settime()
         #oled.fill(0)
@@ -121,14 +106,7 @@ def sync_time(): #пробуем синхронизировать время
     tm = utime.localtime(utime.mktime(utime.localtime()) + utc_shift*3600)
     tm = tm[0:3] + (0,) + tm[3:6] + (0,)
     rtc.datetime(tm)
-
-disconnect()
-#try_connect()  
-rtc = machine.RTC()
-sync_time()
-
-#выводим информацию на экран 1306 с обновлением часов
-def update_oled():
+def update_oled():      #выводим информацию на экран 1306 с обновлением часов
     tim = rtc.datetime()
     year = str(tim[0])
     mon0 = str(tim[1])
@@ -167,16 +145,11 @@ def update_oled():
     oled.text(ip, 0, 0)
     oled.text(hour1 + ":" + min1 + ":" + sec1, 0, 21)
     oled.text(day1 + "." + mon1 + "." + year, 0, 30)
+    #oled.text(str(rc), 0, 40)
     oled.show()
     oled.fill(0)
     time.sleep(1)
-
-tcounter = 0
-p1 = machine.Pin(27)
-p1.init(p1.OUT)
-p1.value(1)
-
-def tcb(timer): #функция, выполняющаяся по коллбэку таймера
+def tcb(timer):         #функция, выполняющаяся по коллбэку таймера
     update_oled()
     global tcounter
     if tcounter & 1:
@@ -187,9 +160,42 @@ def tcb(timer): #функция, выполняющаяся по коллбэк�
     if (tcounter % 10000) == 0:
         print("[tcb] timer: {} counter: {}".format(timer.timernum(), tcounter))
 
+#disconnect()
+
+ip = str(connect(wifissid1, wifipassword1))
+if ip == '127.0.0.1':
+    log('test')
+    ip = str(connect(wifissid2, wifipassword2))
+    log('test2')
+
+
+rtc = machine.RTC()
+sync_time()
+tcounter = 0
+p1 = machine.Pin(27)
+p1.init(p1.OUT)
+p1.value(1)
 t1 = machine.Timer(2)
 t1.init(period=1000, mode=t1.PERIODIC, callback=tcb)
 
 
-    
-#try_relay()
+client=MQTTClient(client_id='mihazi', server='tailor.cloudmqtt.com', port=15899, user='fwdgumzq', password='uWDiXJNmeB4e')
+
+
+try:            
+    client.connect()
+except Exception as e:
+    print('could not connect to MQTT server {}{}'.format(type(e).__name__, e))
+    sys.exit()
+
+client.publish('1', ip)
+
+client_id = ubinascii.hexlify(machine.unique_id())
+print(client_id)
+topic_sub = b'notification'
+topic_pub = b'hello'
+
+
+#while mq_mess1 == 0:
+client.publish(b"notification", b"hello")
+#    client.publish(b"notification", b"hello")
