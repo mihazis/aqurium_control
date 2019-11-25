@@ -9,6 +9,11 @@ import wifi
 from umqtt.simple import MQTTClient
 import ubinascii
 
+co2_start = 8
+co2_end = 18
+light_start = 9
+light_end = 19
+
 mqtt_server = 'tailor.cloudmqtt.com'
 res = machine.Pin(16)
 dc = machine.Pin(17)
@@ -17,13 +22,30 @@ spi1 = machine.SPI(2, baudrate=14500000, sck=machine.Pin(18), mosi=machine.Pin(2
 oled = ssd1306.SSD1306_SPI(128,64,spi1,dc,res,cs)
 utc_shift = 3 #задать дельту временной зоны
 startTime = time.ticks_ms()
-wifissid1 = 'Tensor'
-wifipassword1 = '87654321'
-wifissid2 = 'Tomato24'
-wifipassword2 = '77777777'
+wifissid2 = 'Tensor'
+wifipassword2 = '87654321'
+wifissid1 = 'Tomato24'
+wifipassword1 = '77777777'
 relay1 = machine.Pin(25)
 relay2 = machine.Pin(26)
-mq_mess1 = 0
+p1 = machine.Pin(27)
+relay1.init(relay1.OUT)
+relay2.init(relay2.OUT)
+p1.init(p1.OUT)
+rtc = machine.RTC()
+tcounter = 0
+main_timer1 = machine.Timer(2)
+client=MQTTClient(client_id='mihazi', server='tailor.cloudmqtt.com', port=15899, user='fwdgumzq', password='uWDiXJNmeB4e')
+
+class ZeroDivisionError(Exception):
+    def init(self, message):
+        super().init(message)
+class NameError(Exception):
+    def init(self, message):
+        super().init(message)
+class PasswordError(Exception):
+    def init(self, message):
+        super().init(message)
 
 def disconnect():
     station = network.WLAN(network.STA_IF)
@@ -40,44 +62,30 @@ def log(logs):
     oled.show()
     time.sleep(1)
 def connect(ssid, password):
-    log('connect start')
     station = network.WLAN(network.STA_IF) 
- 
     if not station.active():
         station.active(True) 
-  
     if station.isconnected():
         tuple1 = station.ifconfig()
         ipold = tuple1[0]
         return ipold
-  
     try:
         station.connect(ssid, password)
         time.sleep(3)
         while station.isconnected() == False:
             if time.ticks_diff(time.ticks_ms(), startTime) > 15000:
-                log("raise")
                 raise PasswordError('Неверный пароль')
-            log(str(time.ticks_diff(time.ticks_ms(), startTime)))
-            #time.sleep_ms(1000)
+            #log(str(time.ticks_diff(time.ticks_ms(), startTime)))
+            log('try wifi #1...')
         tuple1 = station.ifconfig()
-        ipold = tuple1[0]
-        return ipold
-          
+        ipnew = tuple1[0]
+        return ipnew
     except PasswordError:
         time.sleep_ms(1000)
-        return '127.0.0.1' 
-def try_relay():
-    ss1 = machine.Pin(25)
-    ss2 = machine.Pin(26)
-    ss1.init(ss1.OUT)
-    ss2.init(ss2.OUT)
-    while True:
-        ss1.value(1)
-        ss2.value(0)
-        time.sleep(0.3)
-        ss1.value(0)
-        ss2.value(1)
+        log("wrong pass")
+        log("try wifi #2...")
+        iperr = '127.0.0.1' 
+        return iperr
 def sync_time():        #пробуем синхронизировать время
     try:
         ntptime.settime()
@@ -142,10 +150,19 @@ def update_oled():      #выводим информацию на экран 130
     else:
         sec1 = sec0
 
+    if co2_start-1 < int(sec0) < co2_end-1:
+        relay1.value(0)
+    else:
+        relay1.value(1)
+
+    if light_start-1 < int(sec0) < light_end-1:
+        relay2.value(0)
+    else:
+        relay2.value(1)
+
     oled.text(ip, 0, 0)
     oled.text(hour1 + ":" + min1 + ":" + sec1, 0, 21)
     oled.text(day1 + "." + mon1 + "." + year, 0, 30)
-    #oled.text(str(rc), 0, 40)
     oled.show()
     oled.fill(0)
     time.sleep(1)
@@ -160,34 +177,30 @@ def tcb(timer):         #функция, выполняющаяся по кол�
     if (tcounter % 10000) == 0:
         print("[tcb] timer: {} counter: {}".format(timer.timernum(), tcounter))
 
-#disconnect()
+try:
+    ip = str(connect(wifissid1, wifipassword1))
+    if ip == '127.0.0.1':
+        ip = str(connect(wifissid2, wifipassword2))
+except Exception as e:
+    print('could not connect to wifi {}{}'.format(type(e).__name__, e))
+    sys.exit()
 
-ip = str(connect(wifissid1, wifipassword1))
-if ip == '127.0.0.1':
-    log('test')
-    ip = str(connect(wifissid2, wifipassword2))
-    log('test2')
+try:
+    sync_time()
+except Exception as e:
+    print('could not connect to wifi {}{}'.format(type(e).__name__, e))
+    sys.exit()
 
+main_timer1.init(period=1000, mode=main_timer1.PERIODIC, callback=tcb)
 
-rtc = machine.RTC()
-sync_time()
-tcounter = 0
-p1 = machine.Pin(27)
-p1.init(p1.OUT)
-p1.value(1)
-t1 = machine.Timer(2)
-t1.init(period=1000, mode=t1.PERIODIC, callback=tcb)
-
-
-client=MQTTClient(client_id='mihazi', server='tailor.cloudmqtt.com', port=15899, user='fwdgumzq', password='uWDiXJNmeB4e')
-
-
+'''
 try:            
     client.connect()
 except Exception as e:
     print('could not connect to MQTT server {}{}'.format(type(e).__name__, e))
-    sys.exit()
+    sys.exit()'''
 
+'''
 client.publish('1', ip)
 
 client_id = ubinascii.hexlify(machine.unique_id())
@@ -198,4 +211,4 @@ topic_pub = b'hello'
 
 #while mq_mess1 == 0:
 client.publish(b"notification", b"hello")
-#    client.publish(b"notification", b"hello")
+#    client.publish(b"notification", b"hello")'''
