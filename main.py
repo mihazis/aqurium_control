@@ -9,10 +9,15 @@ import wifi
 from umqtt.simple import MQTTClient
 import ubinascii
 
-co2_start = 8
-co2_end = 18
-light_start = 9
-light_end = 19
+co2_start1 = 5
+co2_end1 = 8
+co2_start2 = 14
+co2_end2 = 20
+
+light_start1 = 6
+light_end1 = 9
+light_start2 = 15
+light_end2 = 22
 
 mqtt_server = 'tailor.cloudmqtt.com'
 res = machine.Pin(16)
@@ -150,19 +155,35 @@ def update_oled():      #выводим информацию на экран 130
     else:
         sec1 = sec0
 
-    if co2_start-1 < int(sec0) < co2_end-1:
-        relay1.value(0)
+    if co2_start1 <= int(hour0) < co2_end1 or co2_start2 <= int(hour0) < co2_end2: #включаем co2, если вписываемся в рамки
+        co2_state = 1
     else:
-        relay1.value(1)
+        co2_state = 0
 
-    if light_start-1 < int(sec0) < light_end-1:
+    if light_start1 <= int(hour0) < light_end1 or light_start2 <= int(hour0) < light_end2: #включаем свет, если вписываемся в рамки
+        light_state = 1
+    else:
+        light_state = 0
+
+    if light_state == 1:
+        oled.text("l+", 0, 40)
         relay2.value(0)
     else:
+        oled.text("l-", 0, 40)
         relay2.value(1)
+
+    if co2_state == 1:
+        oled.text("c+", 0, 50)
+        relay1.value(0)
+    else:
+        oled.text("c-", 0, 50)
+        relay1.value(1)
 
     oled.text(ip, 0, 0)
     oled.text(hour1 + ":" + min1 + ":" + sec1, 0, 21)
     oled.text(day1 + "." + mon1 + "." + year, 0, 30)
+    oled.text("(" + str(light_start1) + ":" + str(light_end1) + "|" +  str(light_start2) + ":" + str(light_end2) + ")", 20, 40)
+    oled.text("(" + str(co2_start1) + ":" + str(co2_end1) + "|" +  str(co2_start2) + ":" + str(co2_end2) + ")", 20, 50)
     oled.show()
     oled.fill(0)
     time.sleep(1)
